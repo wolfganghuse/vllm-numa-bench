@@ -103,8 +103,37 @@ run_scenario() {
     sleep 5
 }
 
+run_baseline() {
+    echo "========================================"
+    echo "Starting Scenario: BASELINE (No Quantization)"
+    
+    # We use Optimal nodes for the baseline to see max possible speed
+    numactl --cpunodebind=$LOCAL_NODE --membind=$LOCAL_NODE vllm serve $MODEL \
+        --dtype bfloat16 > server_baseline.log 2>&1 &
+    SERVER_PID=$!
+
+    ./monitor.sh "baseline" &
+    MONITOR_PID=$!
+
+    while ! curl -s http://localhost:8000/v1/models > /dev/null; do
+        if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "ERROR: Baseline crashed!"
+            kill $MONITOR_PID
+            return 1
+        fi
+        sleep 1
+    done
+
+    echo "Baseline initialized. Tearing down..."
+    kill -9 $SERVER_PID 2>/dev/null
+    kill -9 $MONITOR_PID 2>/dev/null
+    sudo fuser -k /dev/nvidia* > /dev/null 2>&1
+    sleep 10
+}
+
 # --- EXECUTION PIPELINE ---
 run_warmup
+run_baseline # <--- Add this here
 
 # 1. OPTIMAL: Local CPU, Local Mem
 run_scenario "optimal" $LOCAL_NODE $LOCAL_NODE

@@ -5,7 +5,7 @@ import pandas as pd
 from tabulate import tabulate
 
 def main():
-    scenarios = ['optimal', 'split', 'remote']
+    scenarios = ['baseline', 'optimal', 'split', 'remote']
     results = []
 
     print("Aggregating benchmark data...\n")
