@@ -49,13 +49,14 @@ def main():
                 data = json.load(f)
                 throughput = data.get("request_throughput", 0.0)
                 
-                tpot_data = data.get("time_per_output_token_ms", {})
-                if isinstance(tpot_data, dict):
-                    tpot_p99 = tpot_data.get("p99", 0.0)
-                elif isinstance(data.get("p99_tpot_ms"), (int, float)):
-                    tpot_p99 = data.get("p99_tpot_ms", 0.0)
+                # Check for vLLM 0.18+ flat schema first
+                if "p99_tpot_ms" in data:
+                    tpot_p99 = data["p99_tpot_ms"]
+                # Fallback to older nested schema
+                elif "time_per_output_token_ms" in data:
+                    tpot_p99 = data["time_per_output_token_ms"].get("p99", 0.0)
         else:
-            print(f"Warning: {json_filepath} not found. Did you add --save-result?")
+            print(f"Warning: {json_filepath} not found.")
 
         # Append to our dataset
         results.append({
