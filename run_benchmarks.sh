@@ -54,7 +54,7 @@ run_scenario() {
     echo "CPU Node: $CPU_NODE | Memory Node: $MEM_NODE"
     
     # Drop caches to test memory bandwidth
-    sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
+    # sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 
     ./monitor.sh $SCENARIO_NAME &
     MONITOR_PID=$!
