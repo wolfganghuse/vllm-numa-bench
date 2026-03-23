@@ -4,10 +4,18 @@ source vllm_env/bin/activate
 
 MODEL="meta-llama/Meta-Llama-3-8B" 
 NUM_PROMPTS=200
-export HF_TOKEN="hf_your_actual_token_here" # Ensure your token is still here
+#export HF_TOKEN="hf_your_actual_token_here" # Ensure your token is still here
 
 LOCAL_NODE=0
 REMOTE_NODE=1
+DATASET_FILE="sharegpt.json"
+
+# --- PRE-FLIGHT: Download ShareGPT Dataset ---
+if [ ! -f "$DATASET_FILE" ]; then
+    echo "Downloading ShareGPT dataset for realistic TPOT benchmarking..."
+    wget -qO $DATASET_FILE https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json
+    echo "Download complete."
+fi
 
 run_warmup() {
     echo "========================================"
@@ -43,7 +51,7 @@ run_scenario() {
     echo "Starting Scenario: $SCENARIO_NAME"
     echo "CPU Node: $CPU_NODE | Memory Node: $MEM_NODE"
     
-    # Drop caches to test memory bandwidth, but keep disk/compiler caches intact
+    # Drop caches to test memory bandwidth
     sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 
     ./monitor.sh $SCENARIO_NAME &
@@ -70,10 +78,13 @@ run_scenario() {
     echo "Engine Initialized! Total Bash Load Time: $LOAD_TIME seconds."
     echo $LOAD_TIME > $LOAD_TIME_FILE
 
-    echo "Running benchmark client..."
+    echo "Running benchmark client with ShareGPT dataset..."
+    
+    # --- UPDATED CLIENT COMMAND ---
     vllm bench serve \
         --model $MODEL \
-        --dataset-name random \
+        --dataset-name sharegpt \
+        --dataset-path $DATASET_FILE \
         --num-prompts $NUM_PROMPTS \
         --save-result \
         --result-filename $OUT_FILE
