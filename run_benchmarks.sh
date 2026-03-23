@@ -33,9 +33,8 @@ run_warmup() {
     done
 
     echo "Warmup engine initialized. Shutting down to start pristine tests..."
-    kill $WARMUP_PID
-    wait $WARMUP_PID 2>/dev/null
-    sleep 5
+    pkill -9 -f "vllm serve"
+    sleep 10
     echo "Warmup complete."
     echo "========================================"
 }
@@ -90,10 +89,10 @@ run_scenario() {
         --result-filename $OUT_FILE
 
     echo "Shutting down server..."
-    kill $SERVER_PID
-    wait $SERVER_PID 2>/dev/null
+    pkill -9 -f "vllm serve"
+    kill $MONITOR_PID 2>/dev/null
+    sleep 10
     
-    kill $MONITOR_PID
     echo "Scenario $SCENARIO_NAME completed."
     echo "========================================"
     sleep 5
