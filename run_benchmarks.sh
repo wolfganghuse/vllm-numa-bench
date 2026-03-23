@@ -60,6 +60,7 @@ run_scenario() {
         --model $MODEL \
         --dataset-name random \
         --num-prompts $NUM_PROMPTS \
+        --save-result \
         --result-filename $OUT_FILE
 
     # 4. Graceful teardown
