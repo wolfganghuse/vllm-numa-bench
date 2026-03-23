@@ -13,7 +13,8 @@ def main():
     for scenario in scenarios:
         json_filepath = f"results_{scenario}.json"
         txt_filepath = f"load_time_{scenario}.txt"
-        log_filepath = f"server_{scenario}.log"
+        server_log = f"server_{scenario}.log"
+        monitor_log = f"monitor_{scenario}.log"
         
         # 1. Parse Total Bash Boot Time
         bash_load_time = "N/A"
@@ -27,21 +28,31 @@ def main():
         # 2. Deep Dive: Parse Engine Logs for pure weight casting time
         weight_load_time = "N/A"
         engine_load_time = "N/A"
-        if os.path.exists(log_filepath):
-            with open(log_filepath, 'r') as f:
+        if os.path.exists(server_log):
+            with open(server_log, 'r') as f:
                 log_content = f.read()
-                
-                # Looks for: "Loading weights took 7.26 seconds"
                 wt_match = re.search(r'Loading weights took ([0-9.]+) seconds', log_content)
                 if wt_match:
                     weight_load_time = float(wt_match.group(1))
                     
-                # Looks for: "Model loading took X GiB memory and 8.802694 seconds"
                 eng_match = re.search(r'Model loading took .* and ([0-9.]+) seconds', log_content)
                 if eng_match:
                     engine_load_time = float(eng_match.group(1))
 
-        # 3. Parse Throughput and TPOT
+        # 3. Parse PCIe Bandwidth from Monitor Logs
+        peak_rx_gbs = 0.0
+        if os.path.exists(monitor_log):
+            with open(monitor_log, 'r') as f:
+                for line in f:
+                    # nvidia-smi dmon outputs GPU index, rxpci (MB/s), txpci (MB/s)
+                    # Example line: "    0      4500       12"
+                    match = re.match(r'^\s*0\s+(\d+)\s+(\d+)', line)
+                    if match:
+                        rx_mbs = int(match.group(1))
+                        if rx_mbs > (peak_rx_gbs * 1000): # Convert GB/s back to MB/s for comparison
+                            peak_rx_gbs = rx_mbs / 1000.0
+
+        # 4. Parse Throughput and TPOT
         throughput = 0.0
         tpot_p99 = 0.0
         if os.path.exists(json_filepath):
@@ -62,8 +73,8 @@ def main():
         results.append({
             "Scenario": scenario.upper(),
             "Total Boot (s)": bash_load_time,
-            "Internal Engine Boot (s)": round(engine_load_time, 2) if isinstance(engine_load_time, float) else engine_load_time,
-            "Weight Casting Phase (s)": round(weight_load_time, 2) if isinstance(weight_load_time, float) else weight_load_time,
+            "Weight Casting (s)": round(weight_load_time, 2) if isinstance(weight_load_time, float) else weight_load_time,
+            "Peak PCIe Rx (GB/s)": round(peak_rx_gbs, 2),
             "Throughput (req/s)": round(throughput, 2) if isinstance(throughput, float) else throughput,
             "P99 TPOT (ms)": round(tpot_p99, 2) if isinstance(tpot_p99, float) else tpot_p99
         })
@@ -74,7 +85,7 @@ def main():
         print("--- DUAL-BOTTLENECK BENCHMARK RESULTS ---")
         print(tabulate(df, headers='keys', tablefmt='grid', showindex=False))
         print("-----------------------------------------")
-        print("\nNote: 'Weight Casting Phase' isolates the raw I/O and quantization time, removing server overhead.")
+        print("\nNote: Peak PCIe Rx measures the data transfer speed into the GPU during weight loading.")
 
 if __name__ == "__main__":
     main()
