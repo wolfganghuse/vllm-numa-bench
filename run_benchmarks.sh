@@ -33,8 +33,7 @@ run_scenario() {
     # 1. Start the SERVER in the background, strictly bound to the NUMA nodes
     # We pass the quantization argument here, as this is where weights are loaded!
     numactl --cpunodebind=$CPU_NODE --membind=$MEM_NODE vllm serve $MODEL \
-        --quantization fp8 \
-        --disable-log-requests > server_${SCENARIO_NAME}.log 2>&1 &
+        --quantization fp8 > server_${SCENARIO_NAME}.log 2>&1 &
     SERVER_PID=$!
 
     # 2. Poll the API to find the exact moment the weights finish loading
