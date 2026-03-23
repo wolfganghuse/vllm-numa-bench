@@ -1,9 +1,8 @@
 #!/bin/bash
-# Note: Corrected shebang from #!/bash/bin to #!/bin/bash
 
-MODEL="meta-llama/Meta-Llama-3-70B"
+# Temporarily using 8B model so the VM doesn't OOM crash during testing
+MODEL="meta-llama/Meta-Llama-3-8B" 
 NUM_PROMPTS=200
-BENCH_SCRIPT="./vllm_repo/benchmarks/benchmark_serving.py"
 
 # UPDATE THESE BASED ON `nvidia-smi topo -m`
 LOCAL_NODE=0
@@ -19,19 +18,21 @@ run_scenario() {
     echo "Starting Scenario: $SCENARIO_NAME"
     echo "CPU Node: $CPU_NODE | Memory Node: $MEM_NODE"
     
-    # Drop caches to ensure true cold-start for weight loading
-    sync; echo 3 > /proc/sys/vm/drop_caches
+    # FIX 1: Use 'sudo tee' to bypass the redirect permission denied error
+    sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 
     # Start monitoring in the background
     ./monitor.sh $SCENARIO_NAME &
     MONITOR_PID=$!
 
-    # Execute benchmark
-    numactl --cpunodebind=$CPU_NODE --membind=$MEM_NODE python3 $BENCH_SCRIPT \
+    # FIX 2: Use the new vLLM CLI benchmarking tool
+    numactl --cpunodebind=$CPU_NODE --membind=$MEM_NODE vllm bench serve \
+        --backend vllm \
         --model $MODEL \
         --quantization fp8 \
+        --dataset-name random \
         --num-prompts $NUM_PROMPTS \
-        --output-json $OUT_FILE
+        --result-filename $OUT_FILE
 
     # Kill monitoring script
     kill $MONITOR_PID
