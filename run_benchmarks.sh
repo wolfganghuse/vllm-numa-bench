@@ -5,6 +5,7 @@ source vllm_env/bin/activate
 MODEL="meta-llama/Meta-Llama-3-8B" 
 NUM_PROMPTS=200
 #export HF_TOKEN="hf_your_actual_token_here" # Ensure your token is still here
+export OMP_NUM_THREADS=$(nproc)
 
 LOCAL_NODE=0
 REMOTE_NODE=1

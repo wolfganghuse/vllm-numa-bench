@@ -298,3 +298,8 @@ docker run --rm --gpus all \
 
 ## 6. Python Environment
 
+   11  sudo apt install python3.12-venv
+   27  sudo apt install gcc
+   40  sudo apt install make
+   86  sudo apt-get install -y python3-dev python3.12-dev
+   
