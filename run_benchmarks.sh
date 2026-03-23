@@ -33,7 +33,9 @@ run_warmup() {
     done
 
     echo "Warmup engine initialized. Shutting down to start pristine tests..."
-    pkill -9 -f "vllm serve"
+    kill -9 $WARMUP_PID 2>/dev/null
+    pkill -9 -f "vllm"
+    sudo fuser -k /dev/nvidia* > /dev/null 2>&1
     sleep 10
     echo "Warmup complete."
     echo "========================================"
@@ -89,8 +91,10 @@ run_scenario() {
         --result-filename $OUT_FILE
 
     echo "Shutting down server..."
-    pkill -9 -f "vllm serve"
-    kill $MONITOR_PID 2>/dev/null
+    kill -9 $SERVER_PID 2>/dev/null
+    kill -9 $MONITOR_PID 2>/dev/null
+    pkill -9 -f "vllm"
+    sudo fuser -k /dev/nvidia* > /dev/null 2>&1
     sleep 10
     
     echo "Scenario $SCENARIO_NAME completed."
