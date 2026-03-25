@@ -91,6 +91,7 @@ cleanup
 
 # Run the 70B Scenarios
 run_scenario "optimal" "$LOCAL_NODE" "$LOCAL_NODE"
-run_scenario "remote"  "$LOCAL_NODE" "$REMOTE_NODE"
+run_scenario "split"  "$LOCAL_NODE" "$REMOTE_NODE"
+run_scenario "remote" "$REMOTE_NODE" "$REMOTE_NODE"
 
 echo "DONE. Run analyze_results.py"
