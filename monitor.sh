@@ -1,20 +1,20 @@
 #!/bin/bash
-# monitor.sh: Logs NUMA faults and GPU utilization
+SCENARIO=$1
+LOG_FILE="monitor_${SCENARIO}.log"
 
-PHASE=$1
-LOG_FILE="monitor_${PHASE}.log"
+echo "Monitoring Metrics for $SCENARIO..." > $LOG_FILE
 
-echo "Starting hardware monitoring for phase: $PHASE" > $LOG_FILE
+# 1. Monitor PCIe Throughput (Rx/Tx) in the background
+# -s t: PCIe throughput, -i 0: GPU 0
+nvidia-smi dmon -s t -i 0 -c 300 >> $LOG_FILE &
 
+# 2. Monitor NUMA Misses/Foreign memory hits
+# We run this in a loop to capture snapshots during the weight-casting phase
 while true; do
-    echo "--- $(date '+%H:%M:%S') ---" >> $LOG_FILE
-    
-    # Check NUMA remote misses (indicates interconnect traffic)
-    numastat -s | grep "numa_miss" >> $LOG_FILE
-    numastat -s | grep "numa_foreign" >> $LOG_FILE
-    
-    # Check PCIe Rx/Tx throughput to GPU
-    nvidia-smi dmon -s t -c 1 >> $LOG_FILE
-    
+    echo "--- NUMA SNAPSHOT $(date +%T) ---" >> $LOG_FILE
+    numastat -n >> $LOG_FILE
     sleep 2
-done
+done &
+
+# Save the PID of the loop so it can be cleaned up if needed
+# (Though the pkill in the main script will handle it)
