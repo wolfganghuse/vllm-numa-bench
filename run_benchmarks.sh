@@ -84,7 +84,6 @@ run_baseline() {
 }
 
 run_scenario() {
-run_scenario() {
     NAME=$1; CPU=$2; MEM=$3
     echo "========================================"
     echo "Scenario: $NAME (70B FP8)"
