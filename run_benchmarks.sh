@@ -99,7 +99,10 @@ run_scenario() {
     ./monitor.sh $SCENARIO_NAME &
     MONITOR_PID=$!
 
+    # Force existing caches to move to the remote node
+    echo "Migrating existing pages to Node $MEM_NODE..."
     START_TIME=$(date +%s)
+    sudo migratepages $(pgrep -u $USER) $LOCAL_NODE $MEM_NODE
     numactl --cpunodebind=$CPU_NODE --membind=$MEM_NODE vllm serve $MODEL_TO_BENCH \
         --quantization fp8 > server_${SCENARIO_NAME}.log 2>&1 &
     SERVER_PID=$!
