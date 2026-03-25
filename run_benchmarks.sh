@@ -84,32 +84,34 @@ run_baseline() {
 }
 
 run_scenario() {
-    SCENARIO_NAME=$1
-    CPU_NODE=$2
-    MEM_NODE=$3
-    MODEL_TO_BENCH=$TEST_MODEL
-    
-    OUT_FILE="results_${SCENARIO_NAME}.json"
-    LOAD_TIME_FILE="load_time_${SCENARIO_NAME}.txt"
-
+run_scenario() {
+    NAME=$1; CPU=$2; MEM=$3
     echo "========================================"
-    echo "Starting Scenario: $SCENARIO_NAME"
-    echo "CPU Node: $CPU_NODE | Memory Node: $MEM_NODE"
+    echo "Scenario: $NAME (70B FP8)"
+    
+    # --- NEW: CACHE MIGRATION LOGIC ---
+    if [ "$MEM" != "$LOCAL_NODE" ]; then
+        echo "Forcing Weights into Node $MEM Page Cache (This takes ~30s)..."
+        # We use dd to read the model files. numactl forces the OS 
+        # to store these 'cached' pages on the remote node.
+        find ~/.cache/huggingface -name "*.safetensors" -exec \
+            numactl --membind=$MEM dd if={} of=/dev/null bs=1M \; 2>/dev/null
+    fi
+    # ----------------------------------
 
-    ./monitor.sh $SCENARIO_NAME &
-    MONITOR_PID=$!
-
-    # Force existing caches to move to the remote node
-    echo "Migrating existing pages to Node $MEM_NODE..."
-    START_TIME=$(date +%s)
-    sudo migratepages $(pgrep -u $USER) $LOCAL_NODE $MEM_NODE
-    numactl --cpunodebind=$CPU_NODE --membind=$MEM_NODE vllm serve $MODEL_TO_BENCH \
-        --quantization fp8 > server_${SCENARIO_NAME}.log 2>&1 &
-    SERVER_PID=$!
+    ./monitor.sh $NAME &
+    MON_PID=$!
+    
+    START=$(date +%s)
+    # Now, when vLLM starts on CPU $CPU, it will look for weights.
+    # The OS will find them in the Page Cache... but on Node $MEM!
+    numactl --cpunodebind=$CPU --membind=$MEM vllm serve $TEST_MODEL \
+        --quantization fp8 > server_$NAME.log 2>&1 &
+    SVR_PID=$!
 
     echo "Waiting for Engine Initialization..."
     until curl -s http://localhost:8000/v1/models > /dev/null; do
-        if ! kill -0 $SERVER_PID 2>/dev/null; then echo "ERROR: Server crashed!"; return 1; fi
+        if ! kill -0 $SVR_PID 2>/dev/null; then echo "ERROR: Server crashed!"; return 1; fi
         sleep 2
     done
     END_TIME=$(date +%s)
