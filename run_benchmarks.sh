@@ -45,8 +45,8 @@ run_scenario() {
     local START_TIME=$(date +%s)
     
     numactl --cpunodebind=$CPU --membind=$MEM vllm serve "$MODEL" \
-        --quantization fp8 \
-        --disable-log-requests > "server_$NAME.log" 2>&1 &
+        --quantization fp8 > "server_$NAME.log" 2>&1 &
+
     local SVR_PID=$!
 
     # 3. Wait for Health
