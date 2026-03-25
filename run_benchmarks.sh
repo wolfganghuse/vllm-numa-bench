@@ -2,8 +2,10 @@
 
 source vllm_env/bin/activate
 
-#MODEL="meta-llama/Meta-Llama-3-8B" 
-MODEL="meta-llama/Meta-Llama-3-70B"
+# Define two models
+BASELINE_MODEL="meta-llama/Meta-Llama-3-8B"
+TEST_MODEL="meta-llama/Meta-Llama-3-70B"
+
 NUM_PROMPTS=200
 #export HF_TOKEN="hf_your_actual_token_here" # Ensure your token is still here
 export OMP_NUM_THREADS=$(nproc)
@@ -63,7 +65,7 @@ run_scenario() {
     echo "Starting vLLM Server..."
     START_TIME=$(date +%s)
 
-    numactl --cpunodebind=$CPU_NODE --membind=$MEM_NODE vllm serve $MODEL \
+    numactl --cpunodebind=$CPU_NODE --membind=$MEM_NODE vllm serve $TEST_MODEL \
         --quantization fp8 > server_${SCENARIO_NAME}.log 2>&1 &
     SERVER_PID=$!
 
@@ -106,10 +108,10 @@ run_scenario() {
 
 run_baseline() {
     echo "========================================"
-    echo "Starting Scenario: BASELINE (No Quantization)"
+    echo "Starting Scenario: BASELINE (No Quant, 8B Model)"
     
-    # We use Optimal nodes for the baseline to see max possible speed
-    numactl --cpunodebind=$LOCAL_NODE --membind=$LOCAL_NODE vllm serve $MODEL \
+    # We use the 8B model here so it fits in 96GB VRAM at BF16
+    numactl --cpunodebind=$LOCAL_NODE --membind=$LOCAL_NODE vllm serve $BASELINE_MODEL \
         --dtype bfloat16 > server_baseline.log 2>&1 &
     SERVER_PID=$!
 
